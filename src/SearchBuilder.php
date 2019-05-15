@@ -83,7 +83,7 @@ abstract class SearchBuilder
             $fillable = array_merge($fillable, $aliases);
         }
 
-        $params = array_intersect_ukey($params, $fillable, 'strcasecmp');
+        $params = array_filter(array_intersect_ukey($params, $fillable, 'strcasecmp'));
         foreach ($params as $key => $value) {
             if ($fillable[$key] == $key) continue;
             $params[$fillable[$key]] = $params[$key];
