@@ -85,9 +85,11 @@ abstract class SearchBuilder
 
         $params = array_intersect_ukey($params, $fillable, 'strcasecmp');
         foreach ($params as $key => $value) {
+            if ($fillable[$key] == $key) continue;
             $params[$fillable[$key]] = $params[$key];
             unset($params[$key]);
         }
+
         if ($this->sort) {
             $cutSort = ltrim($this->sort, '-');
             if (!isset($fillable[$cutSort])) {
