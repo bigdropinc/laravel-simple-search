@@ -1,0 +1,27 @@
+{
+    "name": "bigdropinc/laravel-simple-search",
+    "description": "Laravel package for search.",
+    "type": "library",
+    "keywords": [
+        "laravel",
+        "simple",
+        "search"
+    ],
+    "require": {
+        "php": ">=7.0",
+        "illuminate/console": ">=5.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "bigdropinc\\LaravelSimpleSearch\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Roman Olifir",
+            "email": "roman.o@bigdropinc.com"
+        }
+    ],
+    "license": "BSD-3-Clause",
+    "minimum-stability": "dev"
+}

@@ -1,0 +1,10 @@
+<?php
+
+namespace DummyNamespace;
+
+use bigdropinc\LaravelSimpleSearch\SearchBuilder;
+
+class DummySearch extends SearchBuilder
+{
+    protected $fillable = [];
+}
