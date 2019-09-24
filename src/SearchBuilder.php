@@ -3,6 +3,7 @@
 namespace bigdropinc\LaravelSimpleSearch;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 /**
  * Class SearchBuilder
@@ -10,58 +11,138 @@ use Illuminate\Database\Eloquent\Builder;
  */
 abstract class SearchBuilder
 {
+    use Casts;
     /**
      * @var Builder query
      */
     protected $query;
     /**
-     * @var array $fillable
+     * @var array
      */
     protected $fillable = [];
+    protected $excludeSort = [];
     /**
-     * @var array $_attributes
-     */
-    protected $_attributes = [];
-    /**
-     * @var string $defaultSort
+     * @var string
      */
     protected $defaultSort = '';
+    protected $sort;
 
     protected $maxPerPage = 100;
     protected $perPageName = 'per_page';
 
-    protected $sort;
-    protected $perPage;
+    /**
+     * @var array $_attributes
+     */
+    private $_attributes = [];
+    private $_sourceAttributes = [];
 
     /**
-     * @param string| $baseQuery
+     * SearchBuilder constructor.
+     * @param $baseQuery
      * @param array $attributes
-     * @return Builder
      */
-    public static function apply($baseQuery, $attributes = []): Builder
+    public function __construct($baseQuery, array $attributes = [])
     {
         if (\is_string($baseQuery)) {
             $baseQuery = ($baseQuery)::query();
         }
 
-        $object = new static();
-        $object->query = $baseQuery;
+        $this->query = $baseQuery;
 
-        $object->setAttributes($attributes);
-        $object->buildQuery();
-        $object->sortQuery();
-        $object->pagination();
+        $this->setAttributes($attributes);
+        $this->buildQuery();
+        $this->buildSort();
+        $this->pagination();
+    }
 
-        return $object->query;
+    public function __get($key)
+    {
+        if (array_key_exists($key, $this->_attributes)) {
+            return $this->_attributes[$key] ?? null;
+        }
+
+        return $this->$key;
+    }
+
+    public function __set($key, $value)
+    {
+        if (array_key_exists($key, $this->_attributes)) {
+            $this->_attributes[$key] = $value;
+        } else {
+            $this->$key = $value;
+        }
+    }
+
+    public function __isset($key)
+    {
+        if (array_key_exists($key, $this->_attributes)) {
+            return isset($this->_attributes[$key]);
+        }
+
+        return isset($this->$key);
+    }
+
+    /**
+     * @param $baseQuery
+     * @param array $attributes
+     * @return Builder
+     */
+    public static function apply($baseQuery, $attributes = []): Builder
+    {
+        return (new static($baseQuery, $attributes))->getQuery();
+    }
+
+    /**
+     * @return Builder
+     */
+    public function getQuery()
+    {
+        return $this->query;
+    }
+
+    /**
+     * @return array
+     */
+    public function getAttributes()
+    {
+        return $this->_attributes;
+    }
+
+    /**
+     * @return array
+     */
+    public function getSourceAttributes()
+    {
+        return $this->_sourceAttributes;
     }
 
     protected function setAttributes($attributes)
     {
-        $this->_attributes = $this->filterAttributes($attributes);
+        $this->_sourceAttributes = $attributes;
+
+        $temp = [];
+        foreach ($attributes as $key => $value) {
+            if (!\in_array($key, $this->fillable)) {
+                continue;
+            }
+
+            if ($this->hasCast($key)) {
+                $temp[$key] = $this->castAttribute($key, $value);
+            } else {
+                $temp[$key] = $value;
+            }
+        }
+        $this->_attributes = $temp;
     }
 
-    protected function sortQuery()
+    protected function buildSort()
     {
+        $sort = $this->getSourceAttributes()['sort'] ?? '';
+
+        if (\in_array($sort, $this->fillable) && !\in_array($sort, $this->excludeSort)) {
+            $this->sort = $sort;
+        }
+
         if (!$this->sort && $this->defaultSort) {
             $this->sort = $this->defaultSort;
         }
@@ -70,49 +151,19 @@ abstract class SearchBuilder
             return;
         }
 
-        $property = ltrim($this->sort, '-');
-        $direction = $this->sort[0] === '-' ? 'desc' : 'asc';
-        $this->query->orderBy($property, $direction);
-    }
-
-    /**
-     * @param array $attributes
-     * @return array
-     */
-    protected function filterAttributes(array $attributes)
-    {
-        $this->sort = $attributes['sort'] ?? '';
-        $this->perPage = $attributes[$this->perPageName] ?? $this->query->getModel()->getPerPage();
-
-        $fillable = array_combine($this->fillable, $this->fillable);
-        if (array_keys($this->fillable) !== range(0, \count($this->fillable) - 1)) {
-            $aliases = array_filter(array_flip($this->fillable), 'is_string');
-            $fillable = array_merge($fillable, $aliases);
+        $key = 'sort' . Str::studly($this->sort);
+        if (\in_array($key, get_class_methods($this), true)) {
+            $this->$key();
+        } else {
+            $property = ltrim($this->sort, '-');
+            $direction = strpos($this->sort, '-') === 0 ? 'desc' : 'asc';
+            $this->query->orderBy($property, $direction);
         }
-
-        $attributes = array_filter(array_intersect_ukey($attributes, $fillable, 'strcasecmp'));
-        foreach ($attributes as $key => $value) {
-            if ($fillable[$key] == $key) continue;
-            $attributes[$fillable[$key]] = $attributes[$key];
-            unset($attributes[$key]);
-        }
-
-        if ($this->sort) {
-            $cutSort = ltrim($this->sort, '-');
-            if (!isset($fillable[$cutSort])) {
-                $this->sort = '';
-            } else {
-                $dir = $this->sort[0] === '-' ? '-' : '';
-                $this->sort = $dir . $fillable[$cutSort];
-            }
-        }
-
-        return $attributes;
     }
 
     protected function buildQuery()
     {
-        foreach ($this->_attributes as $key => $value) {
+        foreach ($this->getAttributes() as $key => $value) {
             $key = strtolower($key);
             if (\in_array($key, get_class_methods($this), true)) {
                 $this->$key($value);
@@ -124,8 +175,8 @@ abstract class SearchBuilder
 
     protected function pagination()
     {
-        $this->perPage = (int)$this->perPage;
-        $perPage = $this->perPage < $this->maxPerPage ? $this->perPage : $this->maxPerPage;
+        $perPage = (int)($this->getSourceAttributes()[$this->perPageName] ?? $this->query->getModel()->getPerPage());
+        $perPage = $perPage < $this->maxPerPage ? $perPage : $this->maxPerPage;
 
         $this->query->getModel()->setPerPage($perPage);
     }

@@ -14,13 +14,13 @@ The preferred way to install this extension is through [composer](http://getcomp
 Either run
 
 ```
-composer require bigdropinc/laravel-simple-search "*"
+composer require bigdropinc/laravel-simple-search "1.0.0"
 ```
 
 or add
 
 ```
-"bigdropinc/laravel-simple-search": "*"
+"bigdropinc/laravel-simple-search": "1.0.0"
 ```
 
 to the require section of your `composer.json` file.
@@ -40,9 +40,9 @@ Filters
 All attributes that should be used described in property `fillable`
 ```php
 protected $fillable = [
+   'id',
    'first_name',
    'last_name',
-   'id' => 'user_id', //alias
 ];
 ```
 
@@ -51,9 +51,9 @@ By default for each attribute applied condition `=`
 Example:
 ```php
 protected $fillable = [
+   'id',
    'first_name',
    'last_name',
-   'id' => 'user_id',
 ];
 ```
 Equivalent
@@ -67,13 +67,19 @@ User::where('first_name', $firstNameValue)
 Сustom filters
 -------------
 ```php
-pulic function first_name($value) {
-   $this->query->where('first_name', 'LIKE', '%'.$value.'%');
-}
-
 pulic function id($value) {
-   $this->query->where('id', '!=', $value);
+   $this->query->where('id', '>', $value);
 }
+```
+
+Cast
+-----------
+Used default Laravel attribute casting. By default use `string` cast
+
+```php
+protected $cast = [
+  'id' => 'integer',	
+];
 ```
 
 Sort
