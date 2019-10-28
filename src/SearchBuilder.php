@@ -137,10 +137,11 @@ abstract class SearchBuilder
 
     protected function buildSort()
     {
-        $sort = $this->getSourceAttributes()['sort'] ?? '';
+        $property = ltrim($this->getSourceAttributes()['sort'], '-') ?? '';
+        $direction = strpos($this->getSourceAttributes()['sort'], '-') === 0 ? 'desc' : 'asc';
 
-        if (\in_array($sort, $this->fillable) && !\in_array($sort, $this->excludeSort)) {
-            $this->sort = $sort;
+        if (\in_array($property, $this->fillable) && !\in_array($property, $this->excludeSort)) {
+            $this->sort = $property;
         }
 
         if (!$this->sort && $this->defaultSort) {
@@ -155,8 +156,6 @@ abstract class SearchBuilder
         if (\in_array($key, get_class_methods($this), true)) {
             $this->$key();
         } else {
-            $property = ltrim($this->sort, '-');
-            $direction = strpos($this->sort, '-') === 0 ? 'desc' : 'asc';
             $this->query->orderBy($property, $direction);
         }
     }
