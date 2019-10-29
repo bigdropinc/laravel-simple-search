@@ -8,6 +8,8 @@ use Illuminate\Support\Str;
 /**
  * Class SearchBuilder
  * @package App\Filters
+ *
+ * @property string sort
  */
 abstract class SearchBuilder
 {
@@ -25,7 +27,6 @@ abstract class SearchBuilder
      * @var string
      */
     protected $defaultSort = '';
-    protected $sort;
 
     protected $maxPerPage = 100;
     protected $perPageName = 'per_page';
@@ -137,26 +138,24 @@ abstract class SearchBuilder
 
     protected function buildSort()
     {
-        $property = ltrim($this->getSourceAttributes()['sort'], '-') ?? '';
-        $direction = strpos($this->getSourceAttributes()['sort'], '-') === 0 ? 'desc' : 'asc';
+        $sort = $this->sort ?? '';
+        $wdSort = ltrim($sort, '-');
 
-        if (\in_array($property, $this->fillable) && !\in_array($property, $this->excludeSort)) {
-            $this->sort = $property;
+        if (!\in_array($wdSort, $this->fillable) || \in_array($wdSort, $this->excludeSort)) {
+            $sort = $this->defaultSort;
+            $wdSort = ltrim($sort, '-');
         }
 
-        if (!$this->sort && $this->defaultSort) {
-            $this->sort = $this->defaultSort;
-        }
-
-        if (!$this->sort) {
+        if (!$wdSort) {
             return;
         }
 
-        $key = 'sort' . Str::studly($this->sort);
+        $key = 'sort' . Str::studly($wdSort);
         if (\in_array($key, get_class_methods($this), true)) {
             $this->$key();
         } else {
-            $this->query->orderBy($property, $direction);
+            $direction = strpos($sort, '-') === 0 ? 'desc' : 'asc';
+            $this->query->orderBy($wdSort, $direction);
         }
     }
 
