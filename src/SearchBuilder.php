@@ -138,7 +138,7 @@ abstract class SearchBuilder
 
     protected function buildSort()
     {
-        $sort = $this->sort ?? '';
+        $sort = $this->getSourceAttributes()['sort'] ?? '';
         $wdSort = ltrim($sort, '-');
 
         if (!\in_array($wdSort, $this->fillable) || \in_array($wdSort, $this->excludeSort)) {
