@@ -52,7 +52,7 @@ Example:
 ```php
 protected $fillable = [
    'id',
-   'first_name',
+   'name' => 'first_name', //alias:  name - search attr, first_name - db attr
    'last_name',
 ];
 ```

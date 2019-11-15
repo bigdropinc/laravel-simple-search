@@ -26,11 +26,13 @@ abstract class SearchBuilder
     /**
      * @var string
      */
-    protected $defaultSort = '';
+    protected $defaultSort = '-id';
+    protected $sortDir = 'asc';
 
     protected $maxPerPage = 100;
     protected $perPageName = 'per_page';
 
+    protected $defaultTableAlias = '';
     /**
      * @var array $_attributes
      */
@@ -47,13 +49,8 @@ abstract class SearchBuilder
         if (\is_string($baseQuery)) {
             $baseQuery = ($baseQuery)::query();
         }
-
         $this->query = $baseQuery;
-
-        $this->setAttributes($attributes);
-        $this->buildQuery();
-        $this->buildSort();
-        $this->pagination();
+        $this->configuration($attributes);
     }
 
     public function __get($key)
@@ -117,10 +114,24 @@ abstract class SearchBuilder
         return $this->_sourceAttributes;
     }
 
-    protected function setAttributes($attributes)
+    protected function customQuery()
+    {
+
+    }
+
+    private function configuration($attributes)
     {
         $this->_sourceAttributes = $attributes;
+        $this->_attributes = $this->filterAttributes($attributes);
 
+        $this->customQuery();
+        $this->buildConditions();
+        $this->buildSort();
+        $this->pagination();
+    }
+
+    private function filterAttributes($attributes)
+    {
         $temp = [];
         foreach ($attributes as $key => $value) {
             if (!\in_array($key, $this->fillable) || null === $value) {
@@ -133,10 +144,29 @@ abstract class SearchBuilder
                 $temp[$key] = $value;
             }
         }
-        $this->_attributes = $temp;
+        return $temp;
     }
 
-    protected function buildSort()
+    private function getAttributeAlias($name)
+    {
+        return isset($this->fillable[$name]) ? $this->fillable[$name] : $name;
+    }
+
+    private function buildConditions()
+    {
+        foreach ($this->getAttributes() as $attr => $value) {
+            $key = Str::camel($attr);
+            if (\in_array($key, get_class_methods($this), true)) {
+                $this->$key($value);
+            } else {
+                $attr = $this->getAttributeAlias($attr);
+                $column = $this->defaultTableAlias ? $this->defaultTableAlias . '.' . $attr : $attr;
+                $this->query->where($column, $value);
+            }
+        }
+    }
+
+    private function buildSort()
     {
         $sort = $this->getSourceAttributes()['sort'] ?? '';
         $wdSort = ltrim($sort, '-');
@@ -150,28 +180,20 @@ abstract class SearchBuilder
             return;
         }
 
+        $this->sortDir = strpos($sort, '-') === 0 ? 'desc' : 'asc';
+
         $key = 'sort' . Str::studly($wdSort);
         if (\in_array($key, get_class_methods($this), true)) {
             $this->$key();
         } else {
-            $direction = strpos($sort, '-') === 0 ? 'desc' : 'asc';
-            $this->query->orderBy($wdSort, $direction);
+            $wdSort = $this->getAttributeAlias($wdSort);
+            $column = $this->defaultTableAlias ? $this->defaultTableAlias . '.' . $wdSort : $wdSort;
+
+            $this->query->orderBy($column, $this->sortDir);
         }
     }
 
-    protected function buildQuery()
-    {
-        foreach ($this->getAttributes() as $key => $value) {
-            $key = strtolower($key);
-            if (\in_array($key, get_class_methods($this), true)) {
-                $this->$key($value);
-            } else {
-                $this->query->where($key, $value);
-            }
-        }
-    }
-
-    protected function pagination()
+    private function pagination()
     {
         $perPage = (int)($this->getSourceAttributes()[$this->perPageName] ?? $this->query->getModel()->getPerPage());
         $perPage = $perPage < $this->maxPerPage ? $perPage : $this->maxPerPage;
