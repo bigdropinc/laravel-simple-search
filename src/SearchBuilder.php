@@ -134,7 +134,7 @@ abstract class SearchBuilder
     {
         $temp = [];
         foreach ($attributes as $key => $value) {
-            if (!\in_array($key, $this->fillable) || null === $value) {
+            if ((!\in_array($key, $this->fillable) && !\array_key_exists($key, $this->fillable)) || null === $value) {
                 continue;
             }
 
