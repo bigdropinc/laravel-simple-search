@@ -149,7 +149,11 @@ abstract class SearchBuilder
 
     private function getAttributeAlias($name)
     {
-        return isset($this->fillable[$name]) ? $this->fillable[$name] : $name;
+        $attr = isset($this->fillable[$name]) ? $this->fillable[$name] : $name;
+        if (false === strpos($attr, '.')) {
+            return $this->defaultTableAlias ? $this->defaultTableAlias . '.' . $attr : $attr;
+        }
+        return $attr;
     }
 
     private function buildConditions()
@@ -159,9 +163,7 @@ abstract class SearchBuilder
             if (\in_array($key, get_class_methods($this), true)) {
                 $this->$key($value);
             } else {
-                $attr = $this->getAttributeAlias($attr);
-                $column = $this->defaultTableAlias ? $this->defaultTableAlias . '.' . $attr : $attr;
-                $this->query->where($column, $value);
+                $this->query->where($this->getAttributeAlias($attr), $value);
             }
         }
     }
@@ -186,10 +188,7 @@ abstract class SearchBuilder
         if (\in_array($key, get_class_methods($this), true)) {
             $this->$key();
         } else {
-            $wdSort = $this->getAttributeAlias($wdSort);
-            $column = $this->defaultTableAlias ? $this->defaultTableAlias . '.' . $wdSort : $wdSort;
-
-            $this->query->orderBy($column, $this->sortDir);
+            $this->query->orderBy($this->getAttributeAlias($wdSort), $this->sortDir);
         }
     }
 
