@@ -196,6 +196,7 @@ abstract class SearchBuilder
     {
         $perPage = (int)($this->getSourceAttributes()[$this->perPageName] ?? $this->query->getModel()->getPerPage());
         $perPage = $perPage < $this->maxPerPage ? $perPage : $this->maxPerPage;
+        $perPage = $perPage < 1 ? 1 : $perPage;
 
         $this->query->getModel()->setPerPage($perPage);
     }
